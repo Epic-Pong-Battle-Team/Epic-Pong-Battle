@@ -12,7 +12,7 @@
 	 */
 	public class ParticleManager 
 	{
-		public static const MAX_PARTICLES:uint = 50000;
+		public static const MAX_PARTICLES:uint = 5000;
 		public static const VMAX:Number = 0.013;
 		public static const VMAX2:Number = VMAX * VMAX;
 		public static const LSCALE:uint = 1;

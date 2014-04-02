@@ -21,14 +21,9 @@
 	import flash.ui.ContextMenuBuiltInItems;
 	import flash.display.StageAlign;
 	import flash.display.StageScaleMode;
+	import flash.display.MovieClip;
 	
 	
-	/**
-	 * Fluid Solver test application
-	 * @author Eugene Zatepyakin
-	 * @link http://blog.inspirit.ru/?p=248
-	 * @link http://code.google.com/p/in-spirit/source/browse/#svn/trunk/projects/FluidSolver
-	 */
 	public class Main extends Sprite 
 	{
 		private const origin:Point = new Point();
@@ -78,7 +73,11 @@
 		private var pm:ParticleManager;
 		private var prevMouse:Point = new Point();
 		private var fluidImage:Bitmap;
-		//private var controls:Controls;
+		public var balle:Balle;
+		public var joueur1:Paddle;
+		public var joueur2:Paddle;
+		public var ballSpeedX:int = -13;
+		public var ballSpeedY:int = -12;
 		
 		public function Main():void 
 		{
@@ -88,9 +87,6 @@
 		
 		private function init(e:Event = null):void 
 		{
-		
-
-			
 			removeEventListener(Event.ADDED_TO_STAGE, init);
 			
 			initStage();
@@ -98,7 +94,7 @@
 			fSolver.fadeSpeed = .007;
 			fSolver.deltaT = .5;
 			fSolver.viscosity = .00015;
-			fSolver.colorDiffusion = .0010;
+			fSolver.colorDiffusion = .00010;
 			
 			var dw:Number = sw / fluid.width;
 			var dh:Number = sh / fluid.height;
@@ -119,24 +115,85 @@
 			
 			fluidImage.y = display.y = fadeImage.y = 0;
 			
-			/*var b:Bitmap = new Bitmap(sparkle);
-			b.y = 40;
-			b.smoothing = true;
-			b.blendMode = BlendMode.ADD;
-			b.scaleX = b.scaleY = 4;*/
+			balle = new Balle();
+			balle.x = stage.stageWidth/2;
+			balle.y = stage.stageHeight/2;
+			joueur1 = new Paddle();
+			joueur1.x = 50;
+			joueur1.y = stage.stageHeight/2;
+			joueur2 = new Paddle();
+			joueur2.x = stage.stageWidth - 50;
+			joueur2.y = stage.stageHeight/2;
+			joueur2.addEventListener(Event.ENTER_FRAME, loop);
 			
-			//controls = new Controls();
-			
+			balle.addEventListener(Event.ENTER_FRAME, onMove);
 			addChild(fluidImage);
 			addChild(fadeImage);
 			addChild(display);
-			//addChild(b);
-			//addChild(controls);
+			addChild(balle);
+			addChild(joueur1);
+			addChild(joueur2);
 			
 			addEventListener(Event.ENTER_FRAME, render);
-			stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove);
 			stage.addEventListener(MouseEvent.CLICK, restart);		
 			
+		}
+		
+		public function loop(e:Event):void{
+			joueur1.y = mouseY;
+			
+			balle.x += ballSpeedX;
+			balle.y += ballSpeedY;
+		 
+			//first check the left and right boundaries
+			if(balle.x <= balle.width/2){ //check if the x position of the left side of the ball is less than or equal to the left side of the screen, which would be 0
+				balle.x = balle.width/2; //then set the ball's x position to that point, in case it already moved off the screen
+				ballSpeedX *= -1; //and multiply the ball's x speed by -1, which will make it move right instead of left
+		 
+			} else if(balle.x >= stage.stageWidth-balle.width/2){ //check to see the right side of the ball is touching the right boundary, which would be 550
+				balle.x = stage.stageWidth-balle.width/2; //reposition it, just in case
+				ballSpeedX *= -1; //multiply the x speed by -1 (now moving left, not right)
+		 
+			}
+		 
+			//now we do the same with the top and bottom of the screen
+			if(balle.y <= balle.height/2){ //if the y position of the top of the ball is less than or equal to the top of the screen
+				balle.y = balle.height/2; //like we did before, set it to that y position...
+				ballSpeedY *= -1; //...and reverse its y speed so that it is now going down instead of up
+		 
+			} else if(balle.y >= stage.stageHeight-balle.height/2){ //if the bottom of the ball is lower than the bottom of the screen
+				balle.y = stage.stageHeight-balle.height/2; //reposition it
+				ballSpeedY *= -1; //and reverse its y speed so that it is moving up now
+		 
+			}
+			
+			if(joueur1.y - joueur1.height/2 < 0){
+				 joueur1.y = joueur1.height/2;
+			 
+			} else if(joueur1.y + joueur1.height/2 > stage.stageHeight){
+				 joueur1.y = stage.stageHeight - joueur1.height/2;
+			}
+			
+			if( joueur1.hitTestObject(balle) == true ){
+				if(ballSpeedX < 0){
+					ballSpeedX *= -1;
+					ballSpeedY = calculateBallAngle(joueur1.y, balle.y);
+				}
+			 
+			} else if(joueur2.hitTestObject(balle) == true ){ //add this
+				if(ballSpeedX > 0){
+					ballSpeedX *= -1;
+					ballSpeedY = calculateBallAngle(joueur2.y, balle.y);
+				}
+			 
+			}
+		}
+		
+		function calculateBallAngle(paddleY:Number, ballY:Number):Number
+		{
+			var ySpeed:Number = 5 * ( (ballY-paddleY) / 25 );
+		 
+			return ySpeed;
 		}
 		
 		private function restart(e:MouseEvent):void
@@ -169,18 +226,9 @@
 			}
 		}
 		
-		private function onMove(e:MouseEvent):void 
+		private function onMove(e:Event):void 
 		{
-			handleForce(e.stageX, e.stageY - 40);
-			/*else
-			{				
-				const NormX:Number = e.stageX * isw;
-				const NormY:Number = (e.stageY - 40) * ish;
-				const VelX:Number = (e.dY) * isw; //why does this have to be opposite?
-				const VelY:Number = (e.dX) * ish; //why does this have to be opposite? 
-
-				addForce(NormX, NormY, VelX, VelY);
-			}*/			
+			handleForce(e.currentTarget.x, e.currentTarget.y - 40);	
 		}
 		
 		private function handleForce(x:Number, y:Number):void
@@ -198,9 +246,8 @@
 		
 		private function render(e:Event):void 
 		{			
-			//var t:int = getTimer();
+			var t:int = getTimer();
 			fSolver.update();
-			//trace(getTimer() - t);
 			
 			if (drawFluid) {
 				drawFluidBitmap();
